@@ -1,10 +1,8 @@
 function [optResults] = opt_SPHET_DP(driveParams,vehParams)
-%OPTIMIZE_SHEV_DP Generates optimal operating points for SHEV using DP.
-%   The function is based on the SHEV_DP_FwdProp.m script to assist in an
-%   easier integration with Simulink for RT evaluation. The input argument
-%   is form of structure.
+%OPTIMIZE_SPHET_DP Generates optimal operation for SPHET using DC-ARTDP.
+%   The input argument is form of structure.
 
-%   -> driveParams : Includes drive trace parameters
+%   -->driveParams : Includes drive trace parameters
 %   -->driveParams.time_s
 %   -->driveParams.spd_mph
 %   -->driveParams.grade_pct
@@ -49,8 +47,10 @@ SOC_Min = vehParams.SOC_Min;
 SOC_Begin = vehParams.SOC_Begin;
 SOC_ReOpt = vehParams.SOC_ReOpt;
 SOC_Final = vehParams.SOC_Final;
-SOC_Range = [];                         % Initializing SOC_range vector as an empty vector
-MAX_FUEL = vehParams.Fuel_init;         % Liters. 1 Liter = 0.264172. Max is 26.49
+SOC_Range = [];                         % Initializing SOC_range vector as 
+                                        % an empty vector
+MAX_FUEL = vehParams.Fuel_init;         % Liters. 1 Liter = 0.264172. Max 
+                                        % is 26.49
 LHV_FUEL = 42600;                       % kJ/kg or J/g - Diesel
 RHO_FUEL = 846;                         % g/L - Diesel
 J2WH_CONV = 0.00027778;                 % Conversion multiplier
@@ -58,19 +58,20 @@ N = length(driveParams.time_s);
 STRTIDX = driveParams.startIdx;         % To assist with re-optimization
 
 %-- Vehicle Parameters
-VehMass = vehParams.VehMass;     %Vehicle + Driver
+VehMass = vehParams.VehMass;            % Vehicle + Driver
 rl_a = vehParams.rl_a;
 rl_b = vehParams.rl_b;
 rl_c = vehParams.rl_c;
-L_aux = vehParams.L_aux;        % Auxiliary load due to electronics [W]
+L_aux = vehParams.L_aux;                % Auxiliary load due 
+                                        % to electronics [W]
 g = 9.81;
 
-E_batt = 145920;                    % Wh
-P_gen_max = vehParams.P_gen_max; %-15000; %-11500;    % W
-P_batt_dchg_max = 432000;           % W
-P_batt_ch_max = -144000;            % W
-P_regen_max = -109440;              % W
-P_mot_max = vehParams.P_mot_max;    % W
+E_batt = 145920;                        % Wh
+P_gen_max = vehParams.P_gen_max;        % W
+P_batt_dchg_max = 432000;               % W
+P_batt_ch_max = -144000;                % W
+P_regen_max = -109440;                  % W
+P_mot_max = vehParams.P_mot_max;        % W
 
 % -- Initialization --
 L_drv = zeros([N 1]);
@@ -81,9 +82,11 @@ HybModeGrp = zeros([N 1]);      % This variable stores the value 1,2.
                                 % -1: Regen
                                 % 1: EV, Series
                                 % 2: Engine, Parallel
-P_mot_lim = zeros([N 2]);     % N by 2 matrix storing min and max value of component power. 
-P_gen_lim = zeros([N 2]);     % N by 2 matrix storing min and max value of component power. 
-P_eng_lim = zeros([N 2]);     % N by 2 matrix storing min and max value of component power. 
+
+% N by 2 matrix storing min and max value of component power.
+P_mot_lim = zeros([N 2]);      
+P_gen_lim = zeros([N 2]);      
+P_eng_lim = zeros([N 2]); 
 
 %%
 for ii = 1:N
@@ -97,18 +100,17 @@ for ii = 1:N
         L_drv(ii,1) = VehMass * acc_drv(ii,1) *...
             abs((driveParams.spd_mph(ii))*0.447); 
     end
-    % Calculates total power load due to resistances for the vehicle at wheels
+    % Calculates total power load due to resistances at wheels
     L_load(ii,1) = (((((rl_c * (driveParams.spd_mph(ii))^2)) +...
         (rl_b * driveParams.spd_mph(ii)) +...
-        (rl_a)) * 4.448) + (VehMass * g * sin(driveParams.grade_pct(ii)/100))) * (driveParams.spd_mph(ii) * 0.447);
+        (rl_a)) * 4.448) + (VehMass * g *...
+        sin(driveParams.grade_pct(ii)/100))) *...
+        (driveParams.spd_mph(ii) * 0.447);
     
     % Determine if the load demand can be met by motor alone or requires
     % engine too.
-    % --> Some method to determine cont motor power limit based on speed
-    % and then compare it with L_load to figure out sub_modes.
-    % P_MOT_CONT_MAX = 245500;    % Watts. Using a static value for now, will be upgraded to speed based
-    
-    L_total(ii,1) = L_drv(ii,1) + L_load(ii,1);  % Total power demand at wheels.
+    L_total(ii,1) = L_drv(ii,1) + L_load(ii,1);  % Total power demand at 
+                                                 % wheels.
     
     % Sub-Problem. Group 1 is EV or SHEV, Group 2 is Parallel or Engine
     % Only.
@@ -176,14 +178,14 @@ end
 % min and max SOC value can be obtained based on drive cycle data as well
 % as power and energy limits.
 
-X_lim = zeros([N 2]);               % X represents state (SOC) here. First column
+X_lim = zeros([N 2]);         % X represents state (SOC) here. First column
                                     % is min value and second is max value.
                             
-X_lim(STRTIDX,1) = SOC_Begin;       % Initializing limits at initial time equal to 
+X_lim(STRTIDX,1) = SOC_Begin;% Initializing limits at initial time equal to 
 X_lim(STRTIDX,2) = SOC_Begin;       % the final SOC value.
 
-X_PRCSN = vehParams.SOC_PRCSN;      % Precision for the SOC. 0.0001 corresponds to 
-                                    % 0.01% SOC change.
+X_PRCSN = vehParams.SOC_PRCSN;  % Precision for SOC. 0.0001 corresponds to 
+                                % 0.01% SOC change.
 
 % 5. Initialize additional variables and parameters
 
@@ -193,11 +195,9 @@ P_gen_opt = zeros([N 1]);
 P_eng_opt = zeros([N 1]);
 P_mot_opt = zeros([N 1]);
 P_batt_opt = zeros([N 1]);
-% P_battopt_total = zeros([N 1]);
 P_regen_opt = zeros([N 1]);
 P_fuel_opt = zeros([N 1]);
 EC_fuel_opt = zeros([N 1]);
-% P_fuelopt_total = zeros([N 1]);
 FuelUsed_L = zeros([N 1]);
 fuelRate_opt = zeros([N 1]);
 
@@ -211,7 +211,7 @@ P_regen_LUT = [0 0;
                25 -98496;
                30 -105792;
                35 -109440];    % Regen power Lookup Table    
-eta_genmot = 0.92;              % mean value obtained based on the Bosch ICD
+eta_genmot = 0.92;             % mean value obtained based on the Bosch ICD
 eta_mot = 0.931;
 %% Loop section - DP Forward Propagation
 X_opt(1,1) = SOC_Begin;
@@ -228,39 +228,46 @@ switch driveParams.tripTypeChoice
         minFsblRng = 0;
 end
 FUEL_FLAG = 0;
-% X_range = ones([100 N]) * NaN;
 while(l <= N)
-    % disp(l)
-    P_regen_avail = interp1(P_regen_LUT(:,1),P_regen_LUT(:,2),(driveParams.spd_mph(l,1)*0.447),'linear');
-    if L_total(l) > 0                                                       % Discharging condition
+    P_regen_avail = interp1(P_regen_LUT(:,1),P_regen_LUT(:,2),...
+        (driveParams.spd_mph(l,1)*0.447),'linear');
+    if L_total(l) > 0                               % Discharging condition
         
         % Step 1: Determine SOC Limits based on the Hybrid Mode
-        if HybModeGrp(l) == 1 && (X_opt(l-1,1) >= SOC_Final)           % EV and Series Mode
+        % EV and Series Mode
+        if HybModeGrp(l) == 1 && (X_opt(l-1,1) >= SOC_Final)
             X_lim(l,2) = X_opt(l-1,1) -...
                 (((L_total(l,1)/eta_mot) +...
-                L_aux + P_gen_lim(l,1))/(E_batt * 3600));        % Max feasible SOC
+                L_aux + P_gen_lim(l,1))/(E_batt * 3600));% Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
                 (((L_total(l,1)/eta_mot) +...
-                L_aux + P_gen_lim(l,2))/(E_batt * 3600));        % Min feasible SOC
-        elseif HybModeGrp(l) == 2 || (X_opt(l-1,1) < SOC_Final)       % Engine Only and Parallel Mode
+                L_aux + P_gen_lim(l,2))/(E_batt * 3600));% Min feasible SOC
+        % Engine Only and Parallel Mode    
+        elseif HybModeGrp(l) == 2 || (X_opt(l-1,1) < SOC_Final)       
             X_lim(l,2) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,1)/eta_mot) + L_aux)/(E_batt * 3600));     % Max feasible SOC
+                (((P_mot_lim(l,1)/eta_mot) +...
+                L_aux)/(E_batt * 3600));     % Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,2)/eta_mot) + L_aux)/(E_batt * 3600));     % Min feasible SOC 
+                (((P_mot_lim(l,2)/eta_mot) +...
+                L_aux)/(E_batt * 3600));     % Min feasible SOC 
             HybModeGrp(l) = 2;
         elseif HybModeGrp(l) == -1      % Regen Braking Mode
             X_lim(l,2) = X_opt(l-1,1) -...
-                (((P_regen_avail/eta_mot) + L_aux + max(P_gen_max,P_batt_ch_max -...
-                (P_regen_avail/eta_mot)))/(E_batt * 3600));        % Max feasible SOC
+                (((P_regen_avail/eta_mot) + L_aux +...
+                max(P_gen_max,P_batt_ch_max -...
+                (P_regen_avail/eta_mot)))/...
+                (E_batt * 3600));% Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,2)/eta_mot) + L_aux + P_gen_lim(l,2))/(E_batt * 3600));  % Min feasible SOC            
+                (((P_mot_lim(l,2)/eta_mot) + L_aux +...
+                P_gen_lim(l,2))/(E_batt * 3600));  % Min feasible SOC            
         end
 
-        % NOTE: Here Max feasible SOC corresponds to operation with generator and Min is
-        % without generator. Because of Forward Propagation.
+        % NOTE: Here Max feasible SOC corresponds to operation with 
+        % generator and Min is without generator. Because of Forward
+        % Propagation.
 
         % Step 2a: Form SOC Query Range and form delta SOC vector  
-        temp = X_lim(l,1):X_PRCSN:X_lim(l,2);               % SOC Range
+        temp = X_lim(l,1):X_PRCSN:X_lim(l,2);                   % SOC Range
         X_range = zeros(size(temp))';
         P_batt_range = zeros(size(temp))';
         P_mot_range = zeros(size(temp))';
@@ -268,12 +275,13 @@ while(l <= N)
         P_eng_range = zeros(size(temp))';
         P_fuel_range = zeros(size(temp))';
         ECvector_Wh_m = zeros(size(temp))';
-        X_range(:,1) = X_lim(l,1):X_PRCSN:X_lim(l,2);               % SOC Range
+        X_range(:,1) = X_lim(l,1):X_PRCSN:X_lim(l,2);           % SOC Range
         
         if HybModeGrp(l) == 1
             P_batt_range(:,1) = (X_opt(l-1,1) - X_range) * (E_batt * 3600);
             P_mot_range(:,1) = L_total(l);            
-            P_gen_range(:,1) = P_batt_range(:,1) - L_aux - (L_total(l)/eta_mot);
+            P_gen_range(:,1) = P_batt_range(:,1) - L_aux -...
+                (L_total(l)/eta_mot);
             P_eng_range(:,1) = zeros(size(P_batt_range(:,1)));
         elseif HybModeGrp(l) == 2
             P_batt_range(:,1) = (X_opt(l-1,1) - X_range) * (E_batt * 3600);
@@ -304,7 +312,6 @@ while(l <= N)
         end
 
         % Step 2b: Determine feasible SOC values based on range estimation
-        % -- Old Version
         ECvector_Wh_m(:,1) = (((X_opt(1,1) - X_range(:,1)) * E_batt) +...
             (EC_fuel_opt(l,1) + (P_fuel_range(:,1)/3600)))/...
            (DistTrvld_m(l,1) - DistTrvld_m(1,1));
@@ -312,10 +319,9 @@ while(l <= N)
         % Step 3a: Compute control candidate values corresponding to all
         % delta SOC
         for k = 1:len_x_rng
-            % -- Old Version
             if ECvector_Wh_m(k,1) > 0
-                estRngVec_m(k,1) = (((X_range(k,1) - SOC_Min) * E_batt) +...
-                    (MAX_FUEL - (FuelUsed_L(l,1) +...
+                estRngVec_m(k,1) = (((X_range(k,1) - SOC_Min) * E_batt)...
+                    + (MAX_FUEL - (FuelUsed_L(l,1) +...
                     (fuelRate(k,1)/RHO_FUEL))) *...
                     (LHV_FUEL * RHO_FUEL * J2WH_CONV))/ECvector_Wh_m(k,1);
                 fsblRngVec(k,1) = estRngVec_m(k,1) -...
@@ -325,10 +331,9 @@ while(l <= N)
                 fsblRngVec(k,1) = estRngVec_m(k,1) -...
                     (DistTrvld_m(end,1) - DistTrvld_m(l,1));
             end
-            
-%             % ---
             temp_P_batt_range = P_batt_range;
-            if (fsblRngVec(k,1) < minFsblRng) || FUEL_FLAG == 1 || (X_range(k,1) < SOC_Min)
+            if (fsblRngVec(k,1) < minFsblRng) || FUEL_FLAG == 1 ||...
+                    (X_range(k,1) < SOC_Min)
                 P_batt_range(k,1) = Inf;
             end
         end
@@ -348,14 +353,14 @@ while(l <= N)
         % Step 5: Determine optimal path as per cost function.
         opt_idx = find(Y_x == min(Y_x));
         
-        if abs(P_gen_range(k,1)) + P_eng_range(k,1) > 100                % 4200 W is minimum power engine map can resolve
+        % 4200 W is minimum power engine map can resolve
+        if abs(P_gen_range(k,1)) + P_eng_range(k,1) > 100                
             % Step 6: Assign optimal SOC value and repeat.
             P_gen_opt(l,1) = P_gen_range(opt_idx);
             P_fuel_opt(l,1) = P_fuel_range(opt_idx);
             P_eng_opt(l,1) = P_eng_range(opt_idx);
             P_batt_opt(l,1) = P_batt_range(opt_idx);
             P_mot_opt(l,1) = P_mot_range(opt_idx);
-%             P_regen_opt(l,1) = P_regen(opt_idx);
             X_opt(l,1) = X_range(opt_idx);
             fuelRate_opt(l,1) = fuelRate(opt_idx);
         else
@@ -365,39 +370,46 @@ while(l <= N)
             P_eng_opt(l,1) = P_eng_range;
             P_batt_opt(l,1) = P_batt_range;
             P_mot_opt(l,1) = P_mot_range;
-%             P_regen_opt(l,1) = P_regen;
             X_opt(l,1) = X_range;
             fuelRate_opt(l,1) = fuelRate;
         end
         
-    elseif L_total(l) <= 0                                                  % Regen-braking condition
+    elseif L_total(l) <= 0       % Regen-braking condition                                           
         % Step 1: Determine SOC Limits based on the Hybrid Mode
-        if HybModeGrp(l) == 1 && (X_opt(l-1,1) >= SOC_Final)          % EV and Series Mode
+        % EV and Series Mode
+        if HybModeGrp(l) == 1 && (X_opt(l-1,1) >= SOC_Final)         
             X_lim(l,2) = X_opt(l-1,1) -...
                 (((L_total(l,1)/eta_mot) +...
-                L_aux + P_gen_lim(l,1))/(E_batt * 3600));        % Max feasible SOC
+                L_aux + P_gen_lim(l,1))/(E_batt * 3600));% Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
                 (((L_total(l,1)/eta_mot) +...
-                L_aux + P_gen_lim(l,2))/(E_batt * 3600));        % Min feasible SOC
-        elseif HybModeGrp(l) == 2        % Engine Only and Parallel Mode
+                L_aux + P_gen_lim(l,2))/(E_batt * 3600));% Min feasible SOC
+        % Engine Only and Parallel Mode    
+        elseif HybModeGrp(l) == 2        
             X_lim(l,2) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,1)/eta_mot) + L_aux)/(E_batt * 3600));     % Max feasible SOC
+                (((P_mot_lim(l,1)/eta_mot) + L_aux)/...
+                (E_batt * 3600));     % Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,2)/eta_mot) + L_aux)/(E_batt * 3600));     % Min feasible SOC
+                (((P_mot_lim(l,2)/eta_mot) + L_aux)/...
+                (E_batt * 3600));     % Min feasible SOC
             HybModeGrp(l) = 2;
         elseif HybModeGrp(l) == -1      % Regen Braking Mode
             X_lim(l,2) = X_opt(l-1,1) -...
-                (((P_regen_avail/eta_mot) + L_aux + max(P_gen_max,P_batt_ch_max -...
-                (P_regen_avail/eta_mot)))/(E_batt * 3600));        % Max feasible SOC
+                (((P_regen_avail/eta_mot) + L_aux +...
+                max(P_gen_max,P_batt_ch_max -...
+                (P_regen_avail/eta_mot)))/...
+                (E_batt * 3600));       % Max feasible SOC
             X_lim(l,1) = X_opt(l-1,1) -...
-                (((P_mot_lim(l,2)/eta_mot) + L_aux + P_gen_lim(l,2))/(E_batt * 3600));  % Min feasible SOC            
+                (((P_mot_lim(l,2)/eta_mot) + L_aux + P_gen_lim(l,2))/...
+                (E_batt * 3600));  % Min feasible SOC            
         end
 
-        % NOTE: Here Max feasible SOC corresponds to operation with generator and Min is
-        % without generator. Because of Forward Propagation.
+        % NOTE: Here Max feasible SOC corresponds to operation with 
+        % generator and Min is without generator. Because of Forward 
+        % Propagation.
 
         % Step 2a: Form SOC Query Range and form delta SOC vector  
-        temp = X_lim(l,1):X_PRCSN:X_lim(l,2);               % SOC Range
+        temp = X_lim(l,1):X_PRCSN:X_lim(l,2);                   % SOC Range
         X_range = zeros(size(temp))';
         P_batt_range = zeros(size(temp))';
         P_mot_range = zeros(size(temp))';
@@ -405,12 +417,13 @@ while(l <= N)
         P_eng_range = zeros(size(temp))';
         P_fuel_range = zeros(size(temp))';
         ECvector_Wh_m = zeros(size(temp))';
-        X_range(:,1) = X_lim(l,1):X_PRCSN:X_lim(l,2);               % SOC Range
+        X_range(:,1) = X_lim(l,1):X_PRCSN:X_lim(l,2);           % SOC Range
         
         if HybModeGrp(l) == 1 
             P_batt_range(:,1) = (X_opt(l-1,1) - X_range) * (E_batt * 3600);
             P_mot_range(:,1) = L_total(l);            
-            P_gen_range(:,1) = P_batt_range(:,1) - L_aux - (L_total(l)/eta_mot);
+            P_gen_range(:,1) = P_batt_range(:,1) - L_aux -...
+                (L_total(l)/eta_mot);
             P_eng_range(:,1) = zeros(size(P_batt_range(:,1)));
         elseif HybModeGrp(l) == 2  
             P_batt_range(:,1) = (X_opt(l-1,1) - X_range) * (E_batt * 3600);
@@ -449,10 +462,9 @@ while(l <= N)
         % Step 3a: Compute control candidate values corresponding to all
         % delta SOC
         for k = 1:len_x_rng
-            % -- Old Version
             if ECvector_Wh_m(k,1) > 0
-                estRngVec_m(k,1) = (((X_range(k,1) - SOC_Min) * E_batt) +...
-                    (MAX_FUEL - (FuelUsed_L(l,1) +...
+                estRngVec_m(k,1) = (((X_range(k,1) - SOC_Min) *...
+                    E_batt) + (MAX_FUEL - (FuelUsed_L(l,1) +...
                     (fuelRate(k,1)/RHO_FUEL))) *...
                     (LHV_FUEL * RHO_FUEL * J2WH_CONV))/ECvector_Wh_m(k,1);
                 fsblRngVec(k,1) = estRngVec_m(k,1) -...
@@ -463,18 +475,9 @@ while(l <= N)
                     (DistTrvld_m(end,1) - DistTrvld_m(l,1));
             end
 
-%             % ---
-%             P_gen(k) = P_gen_max *...
-%                 ((X_range(k) - X_range(1))/(X_range(end) - X_range(1)));
-%             if P_gen(k) ~= 0 && ~isnan(P_gen(k))
-%                 [engEff,~] = calcEngEff(abs(P_gen(k)/eta_genmot));
-%                 P_fuel(k) = (P_gen(k)/eta_genmot) * (1/engEff);
-%             else
-%                 P_fuel(k) = 0;
-%             end
-%             % ---
             temp_P_batt_range = P_batt_range;
-            if (fsblRngVec(k,1) < minFsblRng) || FUEL_FLAG == 1 || (X_range(k,1) < SOC_Min)
+            if (fsblRngVec(k,1) < minFsblRng) || FUEL_FLAG == 1 ||...
+                    (X_range(k,1) < SOC_Min)
                 P_batt_range(k,1) = Inf;
             end
         end
@@ -494,14 +497,14 @@ while(l <= N)
         % Step 5: Determine optimal path as per cost function.
         opt_idx = find(Y_x == min(Y_x));
         
-        if abs(P_gen_range(k,1)) + P_eng_range(k,1) > 100                % 4200 W is minimum power engine map can resolve
+        % 4200 W is minimum power engine map can resolve
+        if abs(P_gen_range(k,1)) + P_eng_range(k,1) > 100                
             % Step 6: Assign optimal SOC value and repeat.
             P_gen_opt(l,1) = P_gen_range(opt_idx);
             P_fuel_opt(l,1) = P_fuel_range(opt_idx);
             P_eng_opt(l,1) = P_eng_range(opt_idx);
             P_batt_opt(l,1) = P_batt_range(opt_idx);
             P_mot_opt(l,1) = P_mot_range(opt_idx);
-%             P_regen_opt(l,1) = P_regen(opt_idx);
             X_opt(l,1) = X_range(opt_idx);
             fuelRate_opt(l,1) = fuelRate(opt_idx);
         else
@@ -511,15 +514,12 @@ while(l <= N)
             P_eng_opt(l,1) = P_eng_range;
             P_batt_opt(l,1) = P_batt_range;
             P_mot_opt(l,1) = P_mot_range;
-%             P_regen_opt(l,1) = P_regen;
             X_opt(l,1) = X_range;
             fuelRate_opt(l,1) = fuelRate;
         end
     end
     
     % Optimal solution addition
-%     P_battopt_total(l,1) = P_battopt_total(l-1,1) + P_batt_opt(l,1);
-%     P_fuelopt_total(l,1) = P_fuelopt_total(l-1,1) + P_fuel_opt(l,1);
     FuelUsed_L(l,1) = FuelUsed_L(l-1,1) + (fuelRate_opt(l,1) / RHO_FUEL);
     
     % Fuel completion check
@@ -538,10 +538,12 @@ while(l <= N)
         estRange_m(l,1) = (((X_opt(l,1) - SOC_Min) * E_batt) +...
                     (MAX_FUEL - FuelUsed_L(l,1)) *...
                     (LHV_FUEL * RHO_FUEL * J2WH_CONV))/EC_Wh_m(l,1);
-        fsblRange(l,1) = estRange_m(l,1) - (DistTrvld_m(end,1) - DistTrvld_m(l,1));
+        fsblRange(l,1) = estRange_m(l,1) - (DistTrvld_m(end,1)...
+            - DistTrvld_m(l,1));
     else
         estRange_m(l,1) = Inf;
-        fsblRange(l,1) = estRange_m(l,1) - (DistTrvld_m(end,1) - DistTrvld_m(l,1));
+        fsblRange(l,1) = estRange_m(l,1) - (DistTrvld_m(end,1)...
+            - DistTrvld_m(l,1));
     end
     %clear estRngVec_m fsblRngVec ECvector_Wh_m
     l = l + 1;
@@ -551,11 +553,13 @@ if any(X_opt < SOC_Min)
     disp('## Infeasible Solution due to SOC violation ##')
     OPT_KEYWORD = 'UNSUCCESSFUL';
     idx = find(X_opt < SOC_Min, 1);
-    NetEC_opt = ((sum(P_batt_opt(1:idx-1)) + sum(P_fuel_opt(1:idx-1)))/3600)/DistTrvld_m(idx-1);    % Wh/m
+    NetEC_opt = ((sum(P_batt_opt(1:idx-1)) + sum(P_fuel_opt(1:idx-1)))...
+        /3600)/DistTrvld_m(idx-1);      % Wh/m
 else
     disp('## Optimization was successful for SOC ##')
     OPT_KEYWORD = 'SUCCESSFUL';
-    NetEC_opt = ((sum(P_batt_opt) + sum(P_fuel_opt))/3600)/DistTrvld_m(end);    % Wh/m
+    NetEC_opt = ((sum(P_batt_opt) + sum(P_fuel_opt))/3600)...
+        /DistTrvld_m(end);              % Wh/m
 end
 
 % Range based Feasibility

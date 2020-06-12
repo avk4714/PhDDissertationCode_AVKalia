@@ -14,7 +14,7 @@ end
 t_step = 0.1;      % Simulation time step [seconds]
 
 % Load drive cycle
-opt = 4;
+opt = 6;
 switch opt
     case 1  %EEC Drive Trace - Complete
         %load('EECY4_DriveCycle.mat')
